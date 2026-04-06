@@ -24,11 +24,11 @@ def trigger(task: dict, config: dict) -> bool:
         logger.error("Shell adapter: unknown placeholder %s in command template", exc)
         return False
 
-    logger.info("Shell adapter: running command: %s", command)
+    args = shlex.split(command)
+    logger.info("Shell adapter: running command: %s", args)
     try:
         result = subprocess.run(
-            command,
-            shell=True,
+            args,
             capture_output=True,
             text=True,
         )

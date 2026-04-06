@@ -9,6 +9,7 @@ import json
 import logging
 import sys
 import time
+import datetime as dt_module
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -51,6 +52,8 @@ def load_config(path: Path = CONFIG_PATH) -> dict:
     config.setdefault("event_prefix", "[agent]")
     config.setdefault("poll_interval", 60)
     config.setdefault("lookahead_minutes", 5)
+    if "ical_url" not in config:
+        raise ValueError("config.yml is missing required key: 'ical_url'")
     return config
 
 
@@ -93,7 +96,6 @@ def fetch_ical(url: str, timeout: int = 15) -> bytes:
 
 def to_datetime(value) -> datetime:
     """Normalise an icalendar date/datetime value to a timezone-aware datetime."""
-    import datetime as dt_module
     # vDDDTypes and similar wrappers all expose a .dt attribute
     dt = value.dt if hasattr(value, "dt") else value
     if isinstance(dt, datetime):
@@ -184,6 +186,7 @@ def poll_once(config: dict, dispatched: set, adapter_fn) -> set:
 
     logger.info("Poll complete — %d matching event(s) in lookahead window", len(tasks))
 
+    dirty = False
     for task in tasks:
         start_dt = task.pop("_start_dt")
         key = dispatch_key(task["uid"], start_dt)
@@ -201,10 +204,13 @@ def poll_once(config: dict, dispatched: set, adapter_fn) -> set:
 
         if success:
             dispatched.add(key)
-            save_dispatched(dispatched)
+            dirty = True
             logger.info("Dispatched and recorded: %s", key)
         else:
             logger.warning("Adapter reported failure for '%s' — will retry next cycle", task["title"])
+
+    if dirty:
+        save_dispatched(dispatched)
 
     return dispatched
 
