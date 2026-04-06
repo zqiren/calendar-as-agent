@@ -1,0 +1,79 @@
+# cal-trigger configuration example
+#
+# Copy this file to config.yml and fill in your values.
+# Only 'ical_url' is required. All other keys have defaults.
+
+# ---------------------------------------------------------------------------
+# Required
+# ---------------------------------------------------------------------------
+
+# Google Calendar iCal URL.
+# Find it at: Google Calendar > Settings > [calendar name] > "Secret address in iCal format"
+ical_url: "https://calendar.google.com/calendar/ical/YOUR_CALENDAR_ID/basic.ics"
+
+# ---------------------------------------------------------------------------
+# Optional daemon settings
+# ---------------------------------------------------------------------------
+
+# How often to poll the iCal feed, in seconds. Default: 60
+# poll_interval: 60
+
+# How far ahead to look for events, in minutes. Default: 5
+# Events must start within (now, now + lookahead_minutes] to be triggered.
+# lookahead_minutes: 5
+
+# Title prefix that marks an event as an agent task. Default: "[agent]"
+# The prefix is stripped from the title before dispatching.
+# event_prefix: "[agent]"
+
+# ---------------------------------------------------------------------------
+# Trigger adapter
+#
+# Set trigger.type to one of: shell | openclaw | http | python
+# Only the "shell" adapter is enabled below. Uncomment the block you want.
+# ---------------------------------------------------------------------------
+
+# --- Shell (default, universal fallback) ---
+# Runs a shell command for each triggered event.
+# Placeholders: {title}, {description}, {start}, {end}, {uid}
+# Returns success if the command exits with code 0.
+trigger:
+  type: shell
+  command: "echo '{title}'"
+
+# --- OpenClaw (first-class integration) ---
+# Invokes the openclaw CLI agent.
+# Requires: openclaw installed and Gateway running.
+#
+# trigger:
+#   type: openclaw
+#   agent: "default"             # agent name from your openclaw config (default: "default")
+#   local: false                  # true = embedded execution, skips Gateway round-trip (default: false)
+#   deliver: false                # true = route the agent reply to a messaging channel (default: false)
+#   reply_channel: "slack"        # channel name: slack | telegram | whatsapp | signal | ...
+#   reply_to: "C0123456789"       # delivery target: channel ID, user ID, phone number, etc.
+#   timeout: 30                   # seconds before aborting the CLI call (default: 30)
+
+# --- HTTP (covers Orbital and any API-based agent) ---
+# POSTs the task dict as JSON to any HTTP endpoint.
+# The full task dict (title, description, start, end, uid) is sent as the request body.
+# Returns success on any 2xx response.
+#
+# trigger:
+#   type: http
+#   url: "http://localhost:8000/api/v1/trigger"   # required
+#   method: POST                                   # POST (default) or PUT
+#   headers:                                       # optional request headers
+#     Authorization: "Bearer your-token-here"
+#     X-Custom-Header: "value"
+#   timeout: 30                                    # seconds (default: 30)
+
+# --- Python (covers CrewAI, LangGraph, AutoGen, etc.) ---
+# Imports a Python module and calls a function with the task dict.
+# The function must accept a single task: dict argument.
+# Return True/None for success, False to signal failure (event will be retried).
+#
+# trigger:
+#   type: python
+#   module: "my_agent_adapter"    # importable module name — must be on sys.path (required)
+#   function: "handle_task"       # function name to call (default: "handle_task")
