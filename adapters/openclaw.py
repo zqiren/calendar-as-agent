@@ -9,7 +9,6 @@ logger = logging.getLogger(__name__)
 def trigger(task: dict, config: dict) -> bool:
     """Call openclaw agent CLI with task title+description. Returns True on exit code 0."""
     agent = config.get("agent", "default")
-
     parts = [p for p in (task.get("title", ""), task.get("description", "")) if p]
     message = ": ".join(parts) or "(no description)"
 
@@ -26,8 +25,8 @@ def trigger(task: dict, config: dict) -> bool:
             args.extend(["--reply-to", config["reply_to"]])
 
     timeout = config.get("timeout", 30)
-    logger.info("OpenClaw adapter: agent=%s, local=%s, deliver=%s", agent, config.get("local"), config.get("deliver"))
-    logger.debug("OpenClaw adapter: full command: %s", args)
+    logger.info("OpenClaw adapter: agent=%s, local=%s, deliver=%s",
+                agent, config.get("local"), config.get("deliver"))
     try:
         result = subprocess.run(
             args,
