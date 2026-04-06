@@ -14,6 +14,7 @@ def trigger(task: dict, config: dict) -> bool:
         module (str, required): module to import (e.g. "my_adapter")
         function (str): function name to call (default: "handle_task")
 
+    The called function must accept a single ``task: dict`` argument.
     Returns True if the function returns truthy or None, False on exception or
     if the function explicitly returns False.
     """

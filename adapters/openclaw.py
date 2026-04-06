@@ -9,7 +9,9 @@ logger = logging.getLogger(__name__)
 def trigger(task: dict, config: dict) -> bool:
     """Call openclaw agent CLI with task title+description. Returns True on exit code 0."""
     agent = config.get("agent", "default")
-    message = f"{task.get('title', '')}: {task.get('description', '')}".strip(": ")
+
+    parts = [p for p in (task.get("title", ""), task.get("description", "")) if p]
+    message = ": ".join(parts) or "(no description)"
 
     args = ["openclaw", "agent", "--agent", agent, "--message", message]
 
@@ -23,12 +25,15 @@ def trigger(task: dict, config: dict) -> bool:
         if config.get("reply_to"):
             args.extend(["--reply-to", config["reply_to"]])
 
-    logger.info("OpenClaw adapter: running command: %s", args)
+    timeout = config.get("timeout", 30)
+    logger.info("OpenClaw adapter: agent=%s, local=%s, deliver=%s", agent, config.get("local"), config.get("deliver"))
+    logger.debug("OpenClaw adapter: full command: %s", args)
     try:
         result = subprocess.run(
             args,
             capture_output=True,
             text=True,
+            timeout=timeout,
         )
         if result.stdout:
             logger.info("OpenClaw adapter stdout: %s", result.stdout.strip())
@@ -38,6 +43,9 @@ def trigger(task: dict, config: dict) -> bool:
             logger.error("OpenClaw adapter: command exited with code %d", result.returncode)
             return False
         return True
+    except subprocess.TimeoutExpired:
+        logger.error("OpenClaw adapter: command timed out after %ds", timeout)
+        return False
     except OSError as exc:
         logger.error("OpenClaw adapter: failed to execute command: %s", exc)
         return False
