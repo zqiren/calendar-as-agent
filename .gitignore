@@ -1,0 +1,6 @@
+dispatched.json
+config.yml
+venv/
+__pycache__/
+*.pyc
+.env
