@@ -1,61 +1,100 @@
 # cal-trigger
 
-cal-trigger is a lightweight Python daemon that polls a Google Calendar iCal feed and triggers AI agent actions when it detects matching events. Calendar is the most universal personal planning surface (2B+ users) — cal-trigger bridges the gap between visual, temporal planning and autonomous agent dispatch, so you can schedule agent work the same way you schedule meetings: just create an event, prefix the title with `[agent]`, and cal-trigger handles the rest.
+**Schedule AI agents from your calendar. Just create an event.**
+
+You already plan your day in Google Calendar. Now your AI agents can read it too.
+
+`cal-trigger` watches your calendar for events prefixed with `[agent]` and automatically dispatches them to any AI agent framework -- OpenClaw, CrewAI, LangGraph, Claude Code, or anything with a CLI, HTTP API, or Python interface. No new UI. No dashboards. Just your calendar.
+
+```
+  Google Calendar                    cal-trigger                     Your Agent
+ +---------------------+           +-----------+           +----------------------+
+ | [agent] Summarize   |  ------>  |  poll +   |  ------>  | Runs the task,       |
+ |   Q1 sales report   |  (iCal)  |  match +  |  (shell/  | returns results      |
+ |   9:00 - 9:30 AM    |          |  dispatch |   http/   |                      |
+ +---------------------+          +-----------+   python)  +----------------------+
+```
 
 ---
 
-## Quickstart
+## The Problem
 
-**Step 1 — Get your Google Calendar iCal URL**
+AI agents are powerful, but triggering them is awkward. You either type into a CLI, wire up a cron job, or build a custom integration. None of these fit how most people actually plan their work: **on a calendar**.
 
-Open Google Calendar > Settings > select your calendar > scroll to "Integrate calendar" > copy the "Secret address in iCal format" (it ends in `/basic.ics`).
+Calendar is the most universal planning surface on earth (2B+ Google Calendar users alone). It's visual, temporal, shareable, and already part of every knowledge worker's daily routine. But today, no open-source tool bridges calendar events to agent dispatch.
 
-**Step 2 — Edit the config**
+**cal-trigger fills that gap.** One lightweight daemon. Any agent framework. Zero lock-in.
+
+---
+
+## How It Works
+
+1. You create a Google Calendar event with the `[agent]` prefix
+2. `cal-trigger` polls your calendar's iCal feed every 60 seconds
+3. When it detects a matching event within the lookahead window (default: 5 minutes before start), it fires your configured trigger
+4. The event is marked as dispatched so it never fires twice
+5. If the trigger fails, it retries on the next poll cycle
+
+```
+Calendar event:         [agent] Research competitor pricing
+Event description:      Compare Cursor, Windsurf, Bolt. Output to #research Slack.
+Event time:             Tuesday 2:00 PM - 3:00 PM
+
+What your agent receives:
+{
+  "title":       "Research competitor pricing",
+  "description": "Compare Cursor, Windsurf, Bolt. Output to #research Slack.",
+  "start":       "2026-04-08T14:00:00+00:00",
+  "end":         "2026-04-08T15:00:00+00:00",
+  "uid":         "abc123@google.com"
+}
+```
+
+The `[agent]` prefix is stripped. The description, start/end times, and event UID are all passed through. Regular calendar events (without the prefix) are completely ignored.
+
+---
+
+## Quickstart (5 minutes)
+
+**Step 1 -- Get your iCal URL**
+
+Google Calendar > Settings > select your calendar > "Integrate calendar" > copy "Secret address in iCal format" (ends in `/basic.ics`).
+
+**Step 2 -- Configure**
 
 ```bash
+git clone https://github.com/zqiren/calendar-as-agent.git
+cd calendar-as-agent
 cp config.example.yml config.yml
 ```
 
-Open `config.yml` and set `ical_url` to the URL you copied. Set `trigger.command` to whatever you want to run when an event fires.
+Edit `config.yml` -- set your `ical_url` and choose a trigger:
 
-**Step 3 — Run the daemon**
+```yaml
+ical_url: "https://calendar.google.com/calendar/ical/YOUR_ID/basic.ics"
+trigger:
+  type: shell
+  command: "echo 'Task: {title} | {description}'"
+```
+
+**Step 3 -- Run**
 
 ```bash
 pip install -r requirements.txt
 python cal_trigger.py
 ```
 
-The daemon will log its activity to stdout. Create a Google Calendar event whose title starts with `[agent]` and scheduled to start within the next 5 minutes — you will see it triggered in the next poll cycle.
+Now create a calendar event titled `[agent] Hello world` starting in the next 5 minutes. You'll see it fire on the next poll cycle.
 
 ---
 
-## Event Convention
+## Use Cases
 
-Events are matched by a configurable prefix on the event title (default: `[agent]`). The prefix is stripped before the task is dispatched. Anything in the event description is passed through as the task description.
-
-```
-Calendar event title:       [agent] Summarize Q1 sales report
-Calendar event description: Focus on APAC region. Output to Slack #reports.
-
-Dispatched task dict:
-{
-  "title":       "Summarize Q1 sales report",
-  "description": "Focus on APAC region. Output to Slack #reports.",
-  "start":       "2026-04-08T09:00:00+00:00",
-  "end":         "2026-04-08T09:30:00+00:00",
-  "uid":         "abc123@google.com"
-}
-```
-
-More examples:
-
-```
-[agent] Draft weekly newsletter
-[agent] Run competitor pricing analysis
-[agent] Backup database and send summary
-```
-
-Each occurrence of an event is dispatched at most once. Dispatch state persists in `dispatched.json` and survives daemon restarts.
+- **Daily standup prep** -- Schedule `[agent] Summarize yesterday's PRs and Slack threads` every morning at 8:45 AM
+- **Recurring research** -- Weekly `[agent] Competitor pricing analysis` that runs every Monday
+- **Meeting prep** -- `[agent] Brief me on attendees and agenda` 15 minutes before important meetings
+- **Automated reports** -- `[agent] Generate weekly metrics dashboard` every Friday at 4 PM
+- **Personal automation** -- `[agent] Backup my notes and email summary` at end of day
 
 ---
 
